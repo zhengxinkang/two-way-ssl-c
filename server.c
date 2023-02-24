@@ -53,7 +53,8 @@ static ENGINE* load_engine(const char* engine_id) {
  */
 static SSL_CTX* get_server_context(const char* ca_pem,
     const char* cert_pem,
-    const char* key_pem) {
+    const char* key_pem,
+    const char* engine_name) {
     SSL_CTX* ctx;
 
     /* Get a default context */
@@ -83,8 +84,8 @@ static SSL_CTX* get_server_context(const char* ca_pem,
     //     goto fail;
     // }
 
-    /* Set the server's key for the above certificate */
-    ENGINE* engine = load_engine("tpm2tss");
+    /* Set the server's key for the above certificate from engine*/
+    ENGINE* engine = load_engine(engine_name);
     if (engine != NULL) {
         printf("load engine success.\n");
         EVP_PKEY* prv_key = (EVP_PKEY*)ENGINE_load_private_key(engine, key_pem, NULL, NULL);
@@ -167,8 +168,11 @@ fail:
     return -1;
 }
 
-int server(const char* port_str, const char* ca_pem,
-    const char* cert_pem, const char* key_pem) {
+int server(const char* port_str,
+    const char* ca_pem,
+    const char* cert_pem,
+    const char* key_pem,
+    const char* engine) {
     static char buffer[BUFSIZE];
     struct sockaddr_in sin;
     socklen_t sin_len;
@@ -188,7 +192,7 @@ int server(const char* port_str, const char* ca_pem,
     OpenSSL_add_ssl_algorithms();
 
     /* Get a server context for our use */
-    if (!(ctx = get_server_context(ca_pem, cert_pem, key_pem))) {
+    if (!(ctx = get_server_context(ca_pem, cert_pem, key_pem, engine))) {
         return -1;
     }
 
