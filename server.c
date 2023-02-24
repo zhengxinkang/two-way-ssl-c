@@ -14,22 +14,47 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <openssl/engine.h>
 
 #include "server.h"
 
-/* Global variable that indicates work is present */
+ /* Global variable that indicates work is present */
 static int do_work = 1;
 
 /* Buffer size to be used for transfers */
 #define BUFSIZE 128
 
+
+static ENGINE* load_engine(const char* engine_id) {
+    printf("load engine start.\n");
+    ERR_load_BIO_strings();
+    //* Load openssl configure *
+    printf("ERR_load_BIO_strings.\n");
+    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, NULL);
+    printf("OPENSSL_init_crypto.\n");
+    ENGINE* engine = ENGINE_by_id(engine_id);
+    if (engine == NULL) {
+        printf("ENGINE by_id failed, engine id: %s\n", engine_id);
+    } else {
+        printf("ENGINE by id ok, engine id: %s\n", engine_id);
+    }
+
+    if (ENGINE_init(engine) == 0)
+        printf("ENGINE init failed, engine id: %s\n", engine_id);
+    else
+        printf("ENGINE init ok, engine id: %s\n", engine_id);
+    ENGINE_set_default(engine, ENGINE_METHOD_ALL);
+    OpenSSL_add_all_algorithms();
+    return engine;
+}
+
 /*
  * Prepare a SSL context for use by the server
  */
-static SSL_CTX *get_server_context(const char *ca_pem,
-                            const char *cert_pem,
-                            const char *key_pem) {
-    SSL_CTX *ctx;
+static SSL_CTX* get_server_context(const char* ca_pem,
+    const char* cert_pem,
+    const char* key_pem) {
+    SSL_CTX* ctx;
 
     /* Get a default context */
     if (!(ctx = SSL_CTX_new(SSLv23_server_method()))) {
@@ -53,9 +78,27 @@ static SSL_CTX *get_server_context(const char *ca_pem,
     }
 
     /* Set the server's key for the above certificate */
-    if (SSL_CTX_use_PrivateKey_file(ctx, key_pem, SSL_FILETYPE_PEM) != 1) {
-        fprintf(stderr, "Could not set the server's key\n");
-        goto fail;
+    // if (SSL_CTX_use_PrivateKey_file(ctx, key_pem, SSL_FILETYPE_PEM) != 1) {
+    //     fprintf(stderr, "Could not set the server's key\n");
+    //     goto fail;
+    // }
+
+    /* Set the server's key for the above certificate */
+    ENGINE* engine = load_engine("tpm2tss");
+    if (engine != NULL) {
+        printf("load engine success.\n");
+        EVP_PKEY* prv_key = (EVP_PKEY*)ENGINE_load_private_key(engine, key_pem, NULL, NULL);
+        if (!prv_key) {
+            printf("failed to load prv key from engine: %s", key_pem);
+        }
+        if (SSL_CTX_use_PrivateKey(ctx, prv_key) != 1) {
+            fprintf(stderr, "Could not set the server's key\n");
+            goto fail;
+        } else {
+            printf("load key ok. %s", key_pem);
+        }
+    } else {
+        printf("load engine fail!");
     }
 
     /* We've loaded both certificate and the key, check if they match */
@@ -69,8 +112,8 @@ static SSL_CTX *get_server_context(const char *ca_pem,
 
     /* Specify that we need to verify the client as well */
     SSL_CTX_set_verify(ctx,
-                       SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-                       NULL);
+        SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+        NULL);
 
     /* We accept only certificates signed only by the CA himself */
     SSL_CTX_set_verify_depth(ctx, 1);
@@ -106,7 +149,7 @@ static int get_socket(int port_num) {
     sin.sin_port = htons(port_num);
 
     /* Bind the socket to the specified port number */
-    if (bind(sock, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
+    if (bind(sock, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
         fprintf(stderr, "Could not bind the socket\n");
         goto fail;
     }
@@ -124,13 +167,13 @@ fail:
     return -1;
 }
 
-int server(const char *port_str, const char *ca_pem,
-           const char *cert_pem, const char *key_pem) {
+int server(const char* port_str, const char* ca_pem,
+    const char* cert_pem, const char* key_pem) {
     static char buffer[BUFSIZE];
     struct sockaddr_in sin;
     socklen_t sin_len;
-    SSL_CTX *ctx;
-    SSL *ssl;
+    SSL_CTX* ctx;
+    SSL* ssl;
     int port_num, listen_fd, net_fd, rc, len;
 
     /* Parse the port number, and then validate it's range */
@@ -159,8 +202,8 @@ int server(const char *port_str, const char *ca_pem,
         /* Hold on till we can an incoming connection */
         sin_len = sizeof(sin);
         if ((net_fd = accept(listen_fd,
-                             (struct sockaddr *) &sin,
-                             &sin_len)) < 0) {
+            (struct sockaddr*)&sin,
+            &sin_len)) < 0) {
             fprintf(stderr, "Failed to accept connection\n");
             continue;
         }
@@ -187,7 +230,7 @@ int server(const char *port_str, const char *ca_pem,
 
         /* Print success connection message on the server */
         printf("SSL handshake successful with %s:%d\n",
-                    inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+            inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 
         /* Echo server... */
         while ((len = SSL_read(ssl, buffer, BUFSIZE)) != 0) {
