@@ -29,3 +29,32 @@ make
 ```
 ./openssl client 127.0.0.1:8888 ./keys/ca/ca_cert.pem ./keys/client/client_cert.pem ./keys/client/private/client_key.pem
 ```
+
+### Server in "jasmine"
+```
+export OPENSSL_CONF=/customer/sdk-refactor/res/openssl.conf.tss
+```
+```
+./openssl server 8888 \
+./keys/ca/example-ca-cert.pem \
+/customer/ability_manager/outCert/abilitydevice.pem \
+/customer/ability_manager/outCert/abilitydevice.key \
+tpm2tss
+```
+
+### Client test to "jasmine" ret=26
+```
+./openssl client 192.168.1.145:8888 \
+./keys/ca/abilityca_pre.pem \
+./keys/client/client_cert.pem \
+./keys/client/private/client_key.pem
+```
+
+### Client test with openssl tool
+```
+openssl s_client -connect 192.168.1.145:8888 -tls1_2 \
+-key ./keys/client/private/client_key.pem \
+-cert ./keys/client/client_cert.pem -CAfile \
+./keys/ca/tls_oic_ca.crt \
+-showcerts
+```

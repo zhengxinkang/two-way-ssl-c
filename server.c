@@ -96,7 +96,7 @@ static SSL_CTX* get_server_context(const char* ca_pem,
             fprintf(stderr, "Could not set the server's key\n");
             goto fail;
         } else {
-            printf("load key ok. %s", key_pem);
+            printf("load key ok. %s\n", key_pem);
         }
     } else {
         printf("load engine fail!");
@@ -106,6 +106,8 @@ static SSL_CTX* get_server_context(const char* ca_pem,
     if (SSL_CTX_check_private_key(ctx) != 1) {
         fprintf(stderr, "Server's certificate and the key don't match\n");
         goto fail;
+    } else {
+        printf("key match cert ok.");
     }
 
     /* We won't handle incomplete read/writes due to renegotiation */
