@@ -110,42 +110,45 @@ int client(const char* conn_str, const char* ca_pem,
     }
 
     /* Verify that SSL handshake completed successfully */
-    // if (SSL_get_verify_result(ssl) != X509_V_OK) {
-    //     fprintf(stderr, "Verification of handshake failed\n");
-    //     goto fail2;
-    // }
+    if (SSL_get_verify_result(ssl) != X509_V_OK) {
+        fprintf(stderr, "Verification of handshake failed\n");
+        goto fail2;
+    }
 
     /* Inform the user that we've successfully connected */
     printf("SSL handshake successful with %s\n", conn_str);
+    while (1) {
+        /* Read a line from the user */
+        if (!fgets(buffer, BUFSIZE, stdin)) {
+            fprintf(stderr, "Could not read input from the user\n");
+            goto fail3;
+        }
 
-    /* Read a line from the user */
-    if (!fgets(buffer, BUFSIZE, stdin)) {
-        fprintf(stderr, "Could not read input from the user\n");
-        goto fail3;
+        /* Get the length of the buffer */
+        len = strlen(buffer);
+
+        /* Write the input onto the SSL socket */
+        if ((rc = SSL_write(ssl, buffer, (int)len)) != len) {
+            fprintf(stderr, "Cannot write to the server\n");
+            goto fail3;
+        }
+
+        /* Read from the server */
+        if ((rc = SSL_read(ssl, buffer, BUFSIZE)) < 0) {
+            fprintf(stderr, "Cannot read from the server\n");
+            goto fail3;
+        }
+        printf("client recv: %s", buffer);
+        /* Check if we've got back what we sent? (Not perfect, but OK for us) */
+        if (0 == memcmp("exit", buffer, strlen("exit"))) {
+            /* Print it on the screen again */
+            printf("exit task.");
+            rc = 0;
+            break;
+        }
+
+        rc = 0;
     }
-
-    /* Get the length of the buffer */
-    len = strlen(buffer);
-
-    /* Write the input onto the SSL socket */
-    if ((rc = SSL_write(ssl, buffer, (int)len)) != len) {
-        fprintf(stderr, "Cannot write to the server\n");
-        goto fail3;
-    }
-
-    /* Read from the server */
-    if ((rc = SSL_read(ssl, buffer, BUFSIZE)) < 0) {
-        fprintf(stderr, "Cannot read from the server\n");
-        goto fail3;
-    }
-
-    /* Check if we've got back what we sent? (Not perfect, but OK for us) */
-    if (len == rc) {
-        /* Print it on the screen again */
-        printf("%s", buffer);
-    }
-
-    rc = 0;
 
     /* Cleanup and exit */
 fail3:

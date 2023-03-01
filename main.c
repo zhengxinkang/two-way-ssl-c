@@ -21,7 +21,7 @@ void usage_server() {
         /* 3 */ "<CAfile_pem> "
         /* 4 */ "<cert_pem> "
         /* 5 */ "<key_pem>\n"
-        /* 6 */ "<engine>\n");
+        /* 6 */ "opt-<engine>\n");
 }
 
 void usage_client() {
@@ -37,10 +37,13 @@ void usage_client() {
  */
 int main(int argc, const char* argv[]) {
     if (!strcmp(argv[1], "server")) {
-        if (argc != 7) {
-            usage_server(); return -1;
-        } else {
+        if (argc == 7) {
             return server(argv[2], argv[3], argv[4], argv[5], argv[6]);
+        } else if (argc == 6) {
+            return server(argv[2], argv[3], argv[4], argv[5], NULL);
+        } else
+        {
+            usage_server(); return -1;
         }
     } else if (!strcmp(argv[1], "client")) {
         if (argc != 6) {

@@ -78,28 +78,30 @@ static SSL_CTX* get_server_context(const char* ca_pem,
         goto fail;
     }
 
-    /* Set the server's key for the above certificate */
-    // if (SSL_CTX_use_PrivateKey_file(ctx, key_pem, SSL_FILETYPE_PEM) != 1) {
-    //     fprintf(stderr, "Could not set the server's key\n");
-    //     goto fail;
-    // }
-
-    /* Set the server's key for the above certificate from engine*/
-    ENGINE* engine = load_engine(engine_name);
-    if (engine != NULL) {
-        printf("load engine success.\n");
-        EVP_PKEY* prv_key = (EVP_PKEY*)ENGINE_load_private_key(engine, key_pem, NULL, NULL);
-        if (!prv_key) {
-            printf("failed to load prv key from engine: %s", key_pem);
-        }
-        if (SSL_CTX_use_PrivateKey(ctx, prv_key) != 1) {
+    if (NULL == engine_name) {
+        /* Set the server's key for the above certificate */
+        if (SSL_CTX_use_PrivateKey_file(ctx, key_pem, SSL_FILETYPE_PEM) != 1) {
             fprintf(stderr, "Could not set the server's key\n");
             goto fail;
-        } else {
-            printf("load key ok. %s\n", key_pem);
         }
     } else {
-        printf("load engine fail!");
+        /* Set the server's key for the above certificate from engine*/
+        ENGINE* engine = load_engine(engine_name);
+        if (engine != NULL) {
+            printf("load engine success.\n");
+            EVP_PKEY* prv_key = (EVP_PKEY*)ENGINE_load_private_key(engine, key_pem, NULL, NULL);
+            if (!prv_key) {
+                printf("failed to load prv key from engine: %s", key_pem);
+            }
+            if (SSL_CTX_use_PrivateKey(ctx, prv_key) != 1) {
+                fprintf(stderr, "Could not set the server's key\n");
+                goto fail;
+            } else {
+                printf("load key ok. %s\n", key_pem);
+            }
+        } else {
+            printf("load engine fail!");
+        }
     }
 
     /* We've loaded both certificate and the key, check if they match */
