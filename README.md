@@ -33,7 +33,10 @@ make
 ### Server in "jasmine"
 ```
 export OPENSSL_CONF=/customer/sdk-refactor/res/openssl.conf.tss
+export LD_LIBRARY_PATH=LD_LIBRARYPATH:/customer/sdk-refactor/libs/arm/
+
 ```
+
 ```
 ./openssl server 8888 \
 ./keys/ca/example-ca-cert.pem \
@@ -42,6 +45,13 @@ export OPENSSL_CONF=/customer/sdk-refactor/res/openssl.conf.tss
 tpm2tss
 ```
 
+```
+./templateSdk server 8888 \
+./keys/ca/example-ca-cert.pem \
+/customer/ability_manager/outCert/abilitydevice.pem \
+/customer/ability_manager/outCert/abilitydevice.key \
+tpm2tss
+```
 ### Client test to "jasmine" ret=26
 ```
 ./openssl client 192.168.1.145:8888 \
